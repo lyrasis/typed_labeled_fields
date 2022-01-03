@@ -1,0 +1,5 @@
+field.admin:
+  js:
+    js/typed_labeled_fields.field.admin.js: {}
+  dependencies:
+    - core/drupal.tabledrag

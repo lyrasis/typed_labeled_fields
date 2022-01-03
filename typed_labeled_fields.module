@@ -2,9 +2,14 @@
 
 /**
  * @file
- * Contains typed_labeled_fields.module.
+ * Contains Field type, widgets and formatters to metadata.
  */
 
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Sql\SqlContentEntityStorage;
+use Drupal\typed_labeled_fields\Field\EntityReferencePropertiesInterface;
+use Drupal\typed_labeled_fields\Plugin\Field\FieldType\TypedLabeledTitle;
+use Drupal\node\Entity\Node;
 use Drupal\Core\Routing\RouteMatchInterface;
 
 /**
@@ -20,5 +25,132 @@ function typed_labeled_fields_help($route_name, RouteMatchInterface $route_match
       return $output;
 
     default:
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function typed_labeled_fields_theme() {
+  return [
+    'field__grouped_by_display_label' => [
+      'template' => 'field--grouped-by-display-label',
+      'base hook' => 'field',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_entity_presave().
+ */
+function typed_labeled_fields_entity_presave(EntityInterface $entity) {
+  switch ($entity->getEntityTypeId()) {
+    case 'node':
+      /** @var Drupal\node\NodeInterface $entity*/
+      foreach ($entity->getFieldDefinitions() as $field_definition) {
+        // Update the title by rendering the first aka primary
+        // TypedLabeledTitle field.
+        if ($field_definition->getItemDefinition()->getClass() == TypedLabeledTitle::class) {
+          $entity->setTitle((string) $entity->get($field_definition->getName())[0]);
+          break;
+        }
+      }
+      break;
+  }
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ */
+function typed_labeled_fields_module_implements_alter(&$implementations, $hook) {
+  switch ($hook) {
+    case 'node_insert':
+    case 'node_update':
+      // Our implementation should run last, after the taxonomy module as it
+      // will perform the a deletion of elements from the index.
+      $group = $implementations['typed_labeled_fields'];
+      unset($implementations['typed_labeled_fields']);
+      $implementations['typed_labeled_fields'] = $group;
+      break;
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert() for node entities.
+ */
+function typed_labeled_fields_node_insert(EntityInterface $node) {
+  typed_labeled_fields_taxonomy_build_node_index($node);
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_update() for node entities.
+ */
+function typed_labeled_fields_node_update(EntityInterface $node) {
+  // If we're not dealing with the default revision of the node, do not make any
+  // change to the taxonomy index.
+  /** @var \Drupal\node\Entity\Node $node */
+  if (!$node->isDefaultRevision()) {
+    return;
+  }
+  typed_labeled_fields_taxonomy_build_node_index($node);
+}
+
+/**
+ * Builds and inserts taxonomy index entries for a given node.
+ *
+ * This function is based off of 'taxonomy_build_node_index'
+ * except it additionally supports the field types of this module
+ * which use EntityReferences as one ore more properties.
+ *
+ * @param \Drupal\node\Entity\Node $node
+ *   The node entity.
+ */
+function typed_labeled_fields_taxonomy_build_node_index(Node $node) {
+  // We maintain a de-normalized table of term/node relationships, containing
+  // only data for current, published nodes.
+  if (!\Drupal::config('taxonomy.settings')->get('maintain_index_table') || !(\Drupal::entityTypeManager()->getStorage('node') instanceof SqlContentEntityStorage)) {
+    return;
+  }
+
+  $status = $node->isPublished();
+  $sticky = (int) $node->isSticky();
+  // We only maintain the taxonomy index for published nodes.
+  if ($status && $node->isDefaultRevision()) {
+    // Collect a unique list of all the term IDs from all node fields.
+    $tid_all = [];
+    foreach ($node->getFieldDefinitions() as $field) {
+      $field_name = $field->getName();
+      $class = $field->getItemDefinition()->getClass();
+      $has_entity_reference_properties = in_array(EntityReferencePropertiesInterface::class, class_implements($class));
+      if ($has_entity_reference_properties) {
+        foreach ($node->getTranslationLanguages() as $language) {
+          foreach ($node->getTranslation($language->getId())->$field_name as $item) {
+            $field_definition = $field->getFieldStorageDefinition();
+            $properties = $item->getEntityReferencePropertyNames($field_definition);
+            foreach ($properties as $property) {
+              $settings = $field_definition->getSetting($property);
+              if ($settings['target_type'] == 'taxonomy_term' && $item->hasEntityReferenceTarget($property)) {
+                $tid = $item->hasEntityReferenceTarget($property);
+                $tid_all[$tid] = $tid;
+              }
+            }
+          }
+        }
+      }
+    }
+    // Insert index entries for all the node's terms.
+    if (!empty($tid_all)) {
+      $connection = \Drupal::database();
+      foreach ($tid_all as $tid) {
+        $connection->merge('taxonomy_index')
+          ->key([
+            'nid' => $node->id(),
+            'tid' => $tid,
+            'status' => $node->isPublished(),
+          ])
+          ->fields(['sticky' => $sticky, 'created' => $node->getCreatedTime()])
+          ->execute();
+      }
+    }
   }
 }
