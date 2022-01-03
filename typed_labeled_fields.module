@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Contains typed_labeled_fields.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function typed_labeled_fields_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the typed_labeled_fields module.
+    case 'help.page.typed_labeled_fields':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Field types for Islandora for basic metadata') . '</p>';
+      return $output;
+
+    default:
+  }
+}

@@ -1,0 +1,5 @@
+name: 'typed_labeled_fields'
+type: module
+description: 'Field types for Islandora for basic metadata'
+core_version_requirement: ^8.8 || ^9
+package: 'typed_labeled_fields'
