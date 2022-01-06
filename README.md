@@ -1,5 +1,5 @@
-# typed_labeled_fields
-
+# Typed labeled fields
+Currently this does..... 
 
 Instructions for install within [isle-dc](https://github.com/Islandora-Devops/isle-dc/)
 
@@ -25,3 +25,8 @@ This page is loaded by the module.
 ### About
 
 Field types for Islandora for basic metadata
+
+## To enable
+- Go to [https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/processors](https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/processors)
+- Check "Enhanced Identifier Aggregated fields"
+- Click Save
