@@ -35,7 +35,7 @@ Field types for Islandora for basic metadata
 
 ```
 
-### To enable
+### To enable (Solr plugin)
 - Go to [https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/processors](https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/processors)
 - Check "Enhanced Identifier Aggregated fields"
 - Click Save
