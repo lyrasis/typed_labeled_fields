@@ -1,5 +1,5 @@
 name: 'Typed Labeled Fields'
 type: module
-description: 'Field types for Islandora for basic metadata'
+description: 'Field type, widgets, formatters and solr processors for Islandora metadata.'
 package: Field types
 core_version_requirement: ^8.8 || ^9
