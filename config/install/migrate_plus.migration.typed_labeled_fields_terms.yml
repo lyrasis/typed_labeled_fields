@@ -1,0 +1,44 @@
+id: typed_labeled_fields_terms
+label: 'Active terms from LC Standard Identifier Schemes vocabulary'
+migration_group: islandora
+migration_tags:
+  - typed_labeled_fields Migrate CSV
+source:
+  plugin: csv
+  path: modules/contrib/typed_labeled_fields/src/csv/typed_labeled_fields_terms.csv
+  header_offset: 0
+  ids:
+    - id
+process:
+  vocab:
+    -
+      plugin: explode
+      source: vocabulary
+      delimiter: '|'
+    -
+      plugin: deepen
+  field_external_vocabulary_source:
+    -
+      plugin: sub_process
+      source: '@vocab'
+      process:
+        target_id:
+          plugin: migration_lookup
+          migration: vocabulary_sources
+          source: value
+          no_stub: true
+  name: name
+  description: description
+  field_term_uri:
+    -
+      plugin: urlencode
+      source: uri
+      method: process
+  field_external_vocabulary_code: code
+destination:
+  plugin: 'entity:taxonomy_term'
+  default_bundle: identifier_types
+migration_dependencies:
+  required:
+    - vocabulary_sources
+  optional: {  }

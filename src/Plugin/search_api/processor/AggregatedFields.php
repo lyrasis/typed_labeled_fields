@@ -16,7 +16,7 @@ use Drupal\search_api\Utility\Utility;
  * @SearchApiProcessor(
  *   id = "enhanced_identifier_aggregated_field",
  *   label = @Translation("Enhanced Identifier Aggregated fields"),
- *   description = @Translation("Add customized aggregations of existing fields to the index. SBN, ISBN, ISBN13, etc. into a single list. NON FUNCTIONAL AT THE MOMENT."),
+ *   description = @Translation("Add customized aggregations of existing fields to the index. SBN, ISBN, ISBN13, etc.. NON FUNCTIONAL AT THE MOMENT."),
  *   stages = {
  *     "add_properties" = 20,
  *   },
@@ -35,7 +35,7 @@ class AggregatedFields extends ProcessorPluginBase {
     if (!$datasource) {
       $definition = [
         'label' => $this->t('Enhanced Identifier Aggregated fields'),
-        'description' => $this->t('Add customized aggregations of existing fields to the index. SBN, ISBN, ISBN13, etc. into a single list. NON FUNCTIONAL AT THE MOMENT.'),
+        'description' => $this->t('Add customized aggregations of existing fields to the index. SBN, ISBN, ISBN13, etc.. NON FUNCTIONAL AT THE MOMENT.'),
         'type' => 'string',
         'processor_id' => $this->getPluginId(),
         // Most aggregation types are single-valued, but "Union" isn't, and we
@@ -116,6 +116,12 @@ class AggregatedFields extends ProcessorPluginBase {
             $values = [end($values)];
           }
           break;
+
+        case 'identifier':
+            if ($values) {
+              $values = [impolde($values)];
+            }
+            break;
 
         case 'first_char':
           $first_value = reset($values);

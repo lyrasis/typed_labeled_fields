@@ -7,6 +7,25 @@ use Drupal\field\Entity\FieldConfig;
 use Symfony\Component\Routing\Exception\InvalidParameterException;
 use Symfony\Component\Routing\Exception\MissingMandatoryParametersException;
 
+/**
+ * Implements hook_uninstall()
+ */
+function typed_labeled_fields_uninstall() {
+  $module_path = DRUPAL_ROOT. base_path() . drupal_get_path('module', 'typed_labeled_fields') . '/config/install';
+  $configs = array();
+  $files = file_scan_directory($module_path, '/migrate_plus/');
+  if ($files) {
+    foreach ($files as $file) {
+      $configs[] = $file->name;
+    }
+    foreach ($configs as $config_name) {
+        drush_print("..." . $config_name);
+        \Drupal::configFactory()->getEditable($config_name)->delete();
+    }
+    return TRUE;
+  }
+  \Drupal::logger('typed_labeled_fields')->info('typed_labeled_fields module: Uninstall triggered.');
+}
 
 function typed_labeled_fields_install() {
   _create_taxonomy();
@@ -16,7 +35,7 @@ function typed_labeled_fields_install() {
  * Create a taxonomy and attach a field to it.
  */
 function _create_taxonomy() {
-  $taxonomy_machine_name = 'identifiers';
+  $taxonomy_machine_name = 'identifier_types';
   $taxonomy_name = 'Identifier';
   try {
     // Check if vocabulary exist.
@@ -36,11 +55,12 @@ function _create_taxonomy() {
       $tids = $query->execute();
       \Drupal::logger('typed_labeled_fields')->info('typed_labeled_fields module: Vocab already exist.');
     }
-    // Add Identifiers if they don't already exist.
-    $identifier_names = ['SBN', 'ISBN', 'Local Identifier'];
-    foreach ($identifier_names as $identifier_name) {
-      _typed_labeled_fields_get_vocabulary_term($identifier_name, $taxonomy_machine_name);
-    }
+    $migration = \Drupal::service('plugin.manager.migration')->createInstance('typed_labeled_fields_terms');
+    $executable = new \Drupal\migrate_tools\MigrateExecutable(
+      $migration,
+      new \Drupal\migrate\MigrateMessage()
+    );
+    $executable->import();
   }
   catch (InvalidParameterException $e) {
     $allowed = FALSE;

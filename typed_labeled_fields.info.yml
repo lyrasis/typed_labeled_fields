@@ -1,5 +1,9 @@
 name: 'Typed Labeled Fields'
 type: module
-description: 'Field type, widgets, formatters and solr processors for Islandora metadata.'
+description: 'Field types, widgets, formatters and solr processors for Islandora metadata.'
 package: Field types
 core_version_requirement: ^8.8 || ^9
+dependencies:
+  - drupal:migrate
+  - migrate_source_csv
+  - migrate_plus
