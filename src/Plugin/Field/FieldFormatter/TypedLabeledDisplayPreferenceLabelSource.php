@@ -38,7 +38,6 @@ class TypedLabeledDisplayPreferenceLabelSource extends AbstractPreference {
    */
   public static function getDefaults() {
     return [
-      self::SOURCE_LABEL,
       self::SOURCE_TYPE,
       self::SOURCE_FIELD,
     ];
