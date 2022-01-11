@@ -346,7 +346,6 @@ class TypedLabeledDisplayPreferenceValuePrefixForLabel extends AbstractTypedLabe
    */
   public static function getDefaults() {
     return [
-      self::SOURCE_TYPE,
       self::SOURCE_NONE,
     ];
   }
@@ -388,7 +387,6 @@ class TypedLabeledDisplayPreferenceValuePrefixForType extends AbstractTypedLabel
   public static function getDefaults() {
     return [
       self::SOURCE_LABEL,
-      self::SOURCE_NONE,
     ];
   }
 
@@ -428,10 +426,10 @@ class TypedLabeledDisplayPreferenceValuePrefixForField extends AbstractTypedLabe
    */
   public static function getDefaults() {
     return [
-      self::SOURCE_LABEL,
-      self::SOURCE_LABEL_TYPE,
-      self::SOURCE_TYPE,
       self::SOURCE_TYPE_LABEL,
+      self::SOURCE_LABEL,
+      self::SOURCE_TYPE,
+      self::SOURCE_LABEL_TYPE,
       self::SOURCE_NONE,
     ];
   }
