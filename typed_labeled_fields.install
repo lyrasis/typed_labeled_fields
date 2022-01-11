@@ -1,0 +1,71 @@
+<?php
+
+use Drupal\taxonomy\Entity\Term;
+use Drupal\taxonomy\Entity\Vocabulary;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\field\Entity\FieldConfig;
+use Symfony\Component\Routing\Exception\InvalidParameterException;
+use Symfony\Component\Routing\Exception\MissingMandatoryParametersException;
+
+
+function typed_labeled_fields_install() {
+  _create_taxonomy();
+}
+
+/**
+ * Create a taxonomy and attach a field to it.
+ */
+function _create_taxonomy() {
+  $taxonomy_machine_name = 'identifiers';
+  $taxonomy_name = 'Identifier';
+  try {
+    // Check if vocabulary exist.
+    $vocabulary = Vocabulary::load($taxonomy_machine_name);
+    // If the Taxonomy doesn't exist, create it.
+    if (!$vocabulary) {
+      $new_vocabulary = \Drupal\taxonomy\Entity\Vocabulary::create(array(
+        'vid' => $taxonomy_machine_name,
+        'description' => 'SBN, ISBN, Local Identifier, etc.',
+        'name' => $taxonomy_name,
+      ));
+      $new_vocabulary->save();
+    } else {
+      // Vocabulary Already exist
+      $query = \Drupal::entityQuery('taxonomy_term');
+      $query->condition('vid', $taxonomy_machine_name);
+      $tids = $query->execute();
+      \Drupal::logger('typed_labeled_fields')->info('typed_labeled_fields module: Vocab already exist.');
+    }
+    // Add Identifiers if they don't already exist.
+    $identifier_names = ['SBN', 'ISBN', 'Local Identifier'];
+    foreach ($identifier_names as $identifier_name) {
+      _typed_labeled_fields_get_vocabulary_term($identifier_name, $taxonomy_machine_name);
+    }
+  }
+  catch (InvalidParameterException $e) {
+    $allowed = FALSE;
+  }
+  catch (MissingMandatoryParametersException $e) {
+    $allowed = FALSE;
+  }
+}
+
+/**
+ * Retrieves a tid for use from taxonomy.
+ */
+function _typed_labeled_fields_get_vocabulary_term($term_value, $vocabulary) {
+  if ($terms = taxonomy_term_load_multiple_by_name($term_value, $vocabulary)) {
+    $term = reset($terms);
+  }
+  else {
+    $term = Term::create([
+      'name' => $term_value,
+      'description' => $term_value,
+      'vid' => $vocabulary,
+    ]);
+    $term->save();
+  }
+  return $term->id();
+}
+
+?>
