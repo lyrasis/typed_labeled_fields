@@ -16,7 +16,7 @@ use Drupal\Core\TypedData\DataDefinition;
 abstract class AbstractLabeledItem extends FieldItemBase {
 
   const PROPERTY_LABEL = 'label';
-
+  
   /**
    * {@inheritdoc}
    */
@@ -25,7 +25,6 @@ abstract class AbstractLabeledItem extends FieldItemBase {
     $properties[self::PROPERTY_LABEL] = DataDefinition::create('string')
       ->setLabel(new TranslatableMarkup('Label'))
       // Confusingly 'case_sensitive' is for Entity Field SQL queries.
-      ->setSetting('case_sensitive', $settings[self::PROPERTY_LABEL]['case_sensitive'])
       ->setRequired(FALSE);
     return $properties;
   }
@@ -71,7 +70,6 @@ abstract class AbstractLabeledItem extends FieldItemBase {
         self::PROPERTY_LABEL => [
           'type' => $settings[self::PROPERTY_LABEL]['is_ascii'] === TRUE ? 'varchar_ascii' : 'varchar',
           'length' => (int) $settings[self::PROPERTY_LABEL]['max_length'],
-          'binary' => $settings[self::PROPERTY_LABEL]['case_sensitive'],
         ],
       ],
     ];

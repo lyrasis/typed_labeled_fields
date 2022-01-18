@@ -24,6 +24,7 @@ use Drupal\Core\TypedData\DataDefinition;
 class TypedLabeledTextLong extends AbstractTypedLabeledItem {
 
   const PROPERTY_VALUE = 'value';
+  const PROPERTY_VALUE_NAME = 'normalized_type_name';
 
   /**
    * {@inheritdoc}

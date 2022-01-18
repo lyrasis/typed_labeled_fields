@@ -25,6 +25,7 @@ use Drupal\Core\TypedData\DataDefinition;
 class TypedLabeledTextShort extends AbstractTypedLabeledItem {
 
   const PROPERTY_VALUE = 'value';
+  const PROPERTY_VALUE_NAME = 'normalized_type_name';
 
   /**
    * {@inheritdoc}
@@ -87,7 +88,7 @@ class TypedLabeledTextShort extends AbstractTypedLabeledItem {
     $properties = parent::propertyDefinitions($field_definition);
     $properties[self::PROPERTY_VALUE] = DataDefinition::create('string')
       ->setLabel(new TranslatableMarkup('Value'))
-      ->setSetting('case_sensitive', $settings[self::PROPERTY_VALUE]['case_sensitive'])
+      ->setSetting('case_sensitive', TRUE)
       ->setRequired(TRUE);
     return $properties;
   }
