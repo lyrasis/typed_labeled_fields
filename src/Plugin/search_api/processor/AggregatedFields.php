@@ -6,7 +6,11 @@ use Drupal\search_api\Datasource\DatasourceInterface;
 use Drupal\search_api\Item\ItemInterface;
 use Drupal\search_api\Plugin\search_api\processor\Property\AggregatedFieldProperty;
 use Drupal\search_api\Processor\ProcessorPluginBase;
+use Drupal\search_api\Processor\ProcessorProperty;
 use Drupal\search_api\Utility\Utility;
+use Drupal\search_api\LoggerTrait;
+use Drupal\search_api\Processor\FieldsProcessorPluginBase;
+use Drupal\typed_labeled_fields\Plugin\Field\FieldType\TypedLabeledTextShort;
 
 /**
  * Adds customized aggregations of existing fields to the index.
@@ -15,129 +19,61 @@ use Drupal\search_api\Utility\Utility;
  *
  * @SearchApiProcessor(
  *   id = "enhanced_identifier_aggregated_field",
- *   label = @Translation("Enhanced Identifier Aggregated fields"),
+ *   label = @Translation("Enhanced Identifier Aggregated field"),
  *   description = @Translation("Add customized aggregations of existing fields to the index. SBN, ISBN, ISBN13, etc.. NON FUNCTIONAL AT THE MOMENT."),
  *   stages = {
- *     "add_properties" = 20,
+ *     "add_properties" = 0,
+ *     "pre_index_save" = -10,
+ *     "preprocess_index" = -11,
+ *     "preprocess_query" = -30,
  *   },
- *   locked = false,
- *   hidden = false,
  * )
  */
+
 class AggregatedFields extends ProcessorPluginBase {
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getPropertyDefinitions(DatasourceInterface $datasource = NULL) {
-    $properties = [];
-
-    if (!$datasource) {
-      $definition = [
-        'label' => $this->t('Enhanced Identifier Aggregated fields'),
-        'description' => $this->t('Add customized aggregations of existing fields to the index. SBN, ISBN, ISBN13, etc.. NON FUNCTIONAL AT THE MOMENT.'),
-        'type' => 'string',
-        'processor_id' => $this->getPluginId(),
-        // Most aggregation types are single-valued, but "Union" isn't, and we
-        // can't know which will be picked, so err on the side of caution here.
-        'is_list' => TRUE,
-      ];
-      $properties['enhanced_identifier_aggregated_field'] = new AggregatedFieldProperty($definition);
+  protected $processor_id = 'enhanced_identifier_aggregated_field';
+  
+    /**
+     * {@inheritdoc}
+     */
+    public function getPropertyDefinitions(DatasourceInterface $datasource = NULL) {
+      $properties = [];
+      if (!$datasource) {
+        $definition = [
+          'label' => $this->t('Enhanced Identifier Aggregated field'),
+          'description' => $this->t('Add customized aggregations of existing fields to the index. SBN, ISBN, ISBN13, etc.. NON FUNCTIONAL AT THE MOMENT.'),
+          'type' => 'textfield',
+          'processor_id' => $this->getPluginId(),
+        ];
+        $properties['enhanced_typed_labeled_fields'] = new ProcessorProperty($definition);
+      }
+  
+      return $properties;
     }
-
-    return $properties;
-  }
 
   /**
    * {@inheritdoc}
    */
   public function addFieldValues(ItemInterface $item) {
-    $fields = $this->index->getFields();
-    $aggregated_fields = $this->getFieldsHelper()
-      ->filterForPropertyPath($fields, NULL, 'enhanced_identifier_aggregated_field');
-    $required_properties_by_datasource = [
-      NULL => [],
-      $item->getDatasourceId() => [],
-    ];
-    foreach ($aggregated_fields as $field) {
-      foreach ($field->getConfiguration()['fields'] as $combined_id) {
-        list($datasource_id, $property_path) = Utility::splitCombinedId($combined_id);
-        $required_properties_by_datasource[$datasource_id][$property_path] = $combined_id;
+    $node = $item->getOriginalObject()->getValue();
+    $field_lease = $node->get('field_identifier_types')->getValue();
+    if ($field_lease[0]['value']) {
+      $fields = $this->getFieldsHelper()
+        ->filterForPropertyPath($item->getFields(), NULL, 'enhanced_typed_labeled_fields');
+      foreach ($fields as $field) {
+        $field->addValue('for lease');
       }
-    }
-
-    $property_values = $this->getFieldsHelper()
-      ->extractItemValues([$item], $required_properties_by_datasource)[0];
-
-    $aggregated_fields = $this->getFieldsHelper()
-      ->filterForPropertyPath($item->getFields(), NULL, 'aggregated_field');
-    foreach ($aggregated_fields as $aggregated_field) {
-      $values = [];
-      $configuration = $aggregated_field->getConfiguration();
-      foreach ($configuration['fields'] as $combined_id) {
-        if (!empty($property_values[$combined_id])) {
-          $values = array_merge($values, $property_values[$combined_id]);
-        }
-      }
-
-      switch ($configuration['type']) {
-        case 'concat':
-          $values = [implode("\n\n", $values)];
-          break;
-
-        case 'sum':
-          $values = [array_sum($values)];
-          break;
-
-        case 'count':
-          $values = [count($values)];
-          break;
-
-        case 'max':
-          if ($values) {
-            $values = [max($values)];
-          }
-          break;
-
-        case 'min':
-          if ($values) {
-            $values = [min($values)];
-          }
-          break;
-
-        case 'first':
-          if ($values) {
-            $values = [reset($values)];
-          }
-          break;
-
-        case 'last':
-          if ($values) {
-            $values = [end($values)];
-          }
-          break;
-
-        case 'identifier':
-            if ($values) {
-              $values = [impolde($values)];
-            }
-            break;
-
-        case 'first_char':
-          $first_value = reset($values);
-          $values = [];
-          if ($first_value) {
-            $values[] = mb_strtoupper(mb_substr($first_value, 0, 1));
-          }
-          break;
-      }
-
-      // Do not use setValues(), since that doesn't preprocess the values
-      // according to their data type.
-      foreach ($values as $value) {
-        $aggregated_field->addValue($value);
-      }
+      \Drupal::logger('typed_labeled_fields')->notice('<pre><code>' . print_r($field_lease, TRUE) . '</code></pre>');
     }
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  protected function process(&$value) {
+    foreach ($value as $key) {
+      $message = dsm($key);
+      \Drupal::logger('typed_labeled_fields')->notice($message);
+    }
+  }
 }
