@@ -13,7 +13,6 @@ use Symfony\Component\Routing\Exception\MissingMandatoryParametersException;
 function typed_labeled_fields_uninstall() {
   $module_path = DRUPAL_ROOT . base_path() . drupal_get_path('module', 'typed_labeled_fields') . '/config/install';
   $configs = array();
-  // $files = \Drupal::service('file_system')->scanDirectory($module_path, TRUE);
   $files = array();
   $files = file_scan_directory($module_path, '/.*/');
   if ($files) {
@@ -56,17 +55,14 @@ function _create_taxonomy() {
       $query = \Drupal::entityQuery('taxonomy_term');
       $query->condition('vid', $taxonomy_machine_name);
       $tids = $query->execute();
-      \Drupal::logger('typed_labeled_fields')->info('typed_labeled_fields module: Vocab already exist.');
     }
     // Migrate the identifier terms from CSV.
-    if (!\Drupal::service('plugin.manager.migration')->hasDefinition('typed_labeled_fields_terms')) {
       $migration = \Drupal::service('plugin.manager.migration')->createInstance('typed_labeled_fields_terms');
       $executable = new \Drupal\migrate_tools\MigrateExecutable(
         $migration,
         new \Drupal\migrate\MigrateMessage()
       );
       $executable->import();
-    }    
   }
   catch (InvalidParameterException $e) {
     $allowed = TRUE;
@@ -93,32 +89,5 @@ function _typed_labeled_fields_get_vocabulary_term($term_value, $vocabulary) {
   }
   return $term->id();
 }
-
-// use Drupal\Core\Entity\Entity\EntityFormDisplay;
-// use Drupal\Core\Entity\Entity\EntityViewDisplay;
-
-// function module_name_update_8000(){
-//     FieldStorageConfig::create(array(
-//         'field_name' => 'example_field',
-//         'entity_type' => 'node',
-//         'type' => 'text',
-//         'cardinality' => -1,
-//         ))->save();
-
-//     FieldConfig::create([
-//     'field_name' => 'example_field',
-//     'entity_type' => 'node',
-//     'bundle' => 'islandora_object',
-//     'label' => 'Example field',
-//     ])->save();
-//     // Manage form display
-//     $form_display = \Drupal::service('entity_display.repository')->getFormDisplay('node', 'islandora_object' );
-//     $form_display = $form_display->setComponent('example_field', ['type' => 'text_textfield']);
-//     $form_display->save();
-//     // Manage view display
-//     $view_display = \Drupal::service('entity_display.repository')->getViewDisplay('node', 'islandora_object');
-//     $view_display->setComponent('example_field', ['type' => 'text_default']);
-//     $view_display->save();
-// }
 
 ?>

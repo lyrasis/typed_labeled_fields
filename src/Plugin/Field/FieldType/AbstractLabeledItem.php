@@ -68,7 +68,7 @@ abstract class AbstractLabeledItem extends FieldItemBase {
     return [
       'columns' => [
         self::PROPERTY_LABEL => [
-          'type' => $settings[self::PROPERTY_LABEL]['is_ascii'] === TRUE ? 'varchar_ascii' : 'varchar',
+          'type' => 'varchar_ascii',
           'length' => (int) $settings[self::PROPERTY_LABEL]['max_length'],
         ],
       ],

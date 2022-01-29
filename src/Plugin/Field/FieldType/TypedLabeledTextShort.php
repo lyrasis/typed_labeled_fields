@@ -72,9 +72,8 @@ class TypedLabeledTextShort extends AbstractTypedLabeledItem {
     $settings = $field_definition->getSettings();
     $schema = parent::schema($field_definition);
     $schema['columns'][self::PROPERTY_VALUE] = [
-      'type' => $settings[self::PROPERTY_VALUE]['is_ascii'] === TRUE ? 'varchar_ascii' : 'varchar',
+      'type' => 'varchar_ascii',
       'length' => (int) $settings[self::PROPERTY_VALUE]['max_length'],
-      'binary' => $settings[self::PROPERTY_VALUE]['case_sensitive'],
       'not null' => TRUE,
     ];
     return $schema;
