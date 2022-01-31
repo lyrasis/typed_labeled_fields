@@ -2,24 +2,14 @@
 
 namespace Drupal\typed_labeled_fields\Plugin\search_api\processor;
 
+use Drupal\field\FieldConfigInterface;
 use Drupal\search_api\Datasource\DatasourceInterface;
 use Drupal\search_api\Item\ItemInterface;
 use Drupal\search_api\Processor\ProcessorProperty;
 use Drupal\node\NodeInterface;
-use Drupal\Core\Entity\ContentEntityInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Entity\TypedData\EntityDataDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
-use Drupal\Core\TypedData\ComplexDataDefinitionInterface;
-use Drupal\search_api\IndexInterface;
-use Drupal\search_api\Item\FieldInterface;
-use Drupal\search_api\Item\Field;
-use Drupal\search_api\Plugin\PluginFormTrait;
 use Drupal\search_api\Processor\ProcessorPluginBase;
-use Drupal\search_api\Utility\Utility;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\Yaml\Parser;
 use Drupal\Core\Language\LanguageInterface;
 
 /**
@@ -56,8 +46,8 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
         'processor_id' => $this->getPluginId(),
       ];
 
-      // Processes the fake fields into Solr Fields
-      $this->fake_fields_list = array();
+      // Processes the fake fields into Solr Fields.
+      $this->fake_fields_list = [];
       $this->fake_fields_list[] = preg_split("/\\r\\n|\\r|\\n/", $this->configuration['fake_fields']);
       if (count($this->fake_fields_list[0]) > 1 || !empty($this->fake_fields_list[0][0])) {
         foreach ($this->fake_fields_list[0] as $fake_field) {
@@ -77,57 +67,57 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
    */
   public function addFieldValues(ItemInterface $item) {
     try {
-        $node = $item->getOriginalObject()->getValue();
-        if (!($node instanceof NodeInterface)) {
-          return;
-        }
-        // Grab the list of Drupal fields with Typed Labeled Text (plain) field type.
-        $fake_fields_source = $this->configuration['fake_fields_source'];
+      $node = $item->getOriginalObject()->getValue();
+      if (!($node instanceof NodeInterface)) {
+        return;
+      }
+      // Grab the list of Drupal fields with Typed Labeled Text (plain) field type.
+      $fake_fields_source = $this->configuration['fake_fields_source'];
 
-        // Review nodes with a declared Typed Labeled Text (plain) field type.
-        if ($node->hasField($fake_fields_source)) {
-            $fake_fields = array();
-            $fake_fields_source_value = $node->get($fake_fields_source)->getValue();
+      // Review nodes with a declared Typed Labeled Text (plain) field type.
+      if ($node->hasField($fake_fields_source)) {
+        $fake_fields = [];
+        $fake_fields_source_value = $node->get($fake_fields_source)->getValue();
 
-            if (isset($fake_fields_source_value[0]['value'])) {
-                foreach ($fake_fields_source_value as $fake_fields_source_value_each) {
+        if (isset($fake_fields_source_value[0]['value'])) {
+          foreach ($fake_fields_source_value as $fake_fields_source_value_each) {
 
-                  // Get the Taxonomy term machine name.
-                  $term_name = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($fake_fields_source_value_each['type_target_id'])->getName();
-                  // Get the optional user submitted "Label" for the Islandora Object's identifier type.
-                  $temp_label = $term_name . '_' . $fake_fields_source_value_each['label'];
-                  // Concatenate this into a single String to Process as Solr field machine Name.
-                  $new_fake_fields_label = $fake_fields_source_value_each['label'] ? $temp_label : $term_name;
+            // Get the Taxonomy term machine name.
+            $term_name = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($fake_fields_source_value_each['type_target_id'])->getName();
+            // Get the optional user submitted "Label" for the Islandora Object's identifier type.
+            $temp_label = $term_name . '_' . $fake_fields_source_value_each['label'];
+            // Concatenate this into a single String to Process as Solr field machine Name.
+            $new_fake_fields_label = $fake_fields_source_value_each['label'] ? $temp_label : $term_name;
 
-                  // Sanitized solr field name.
-                  $transliterated = \Drupal::transliteration()->transliterate(t($new_fake_fields_label), LanguageInterface::LANGCODE_DEFAULT, '_');
-                  $transliterated = mb_strtolower($transliterated);
-                  $transliterated = preg_replace('@[^a-z0-9_.]+@', '_', $transliterated);
+            // Sanitized solr field name.
+            $transliterated = \Drupal::transliteration()->transliterate(t($new_fake_fields_label), LanguageInterface::LANGCODE_DEFAULT, '_');
+            $transliterated = mb_strtolower($transliterated);
+            $transliterated = preg_replace('@[^a-z0-9_.]+@', '_', $transliterated);
 
-                  $fields = $item->getFields(FALSE);
-                  $fields = $this->getFieldsHelper()->filterForPropertyPath($fields, NULL, $transliterated);
+            $fields = $item->getFields(FALSE);
+            $fields = $this->getFieldsHelper()->filterForPropertyPath($fields, NULL, $transliterated);
 
-                  // Break existing fields into an array and add new value to array.
-                  $known_fields = preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields']);
-                  $faker_field = $this->configuration['fake_fields'] . PHP_EOL . $transliterated;
- 
-                  // If the field is not already in the list, add it.
-                  if (!empty($fields)) {
-                    $fake_fields[$transliterated] = $fake_fields_source_value_each['value'];
+            // Break existing fields into an array and add new value to array.
+            $known_fields = preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields']);
+            $faker_field = $this->configuration['fake_fields'] . PHP_EOL . $transliterated;
 
-                    // Avoid duplicate entries.
-                    if (!in_array($transliterated, $known_fields)) {
-                      // Save the value to the Solr config field list.
-                      $this->configuration['fake_fields'] = $faker_field;
-                      $config = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
-                      $config->set('processor_settings.fakefields_index_fake_fields.fake_fields', $this->configuration['fake_fields']);
-                      $config->save();
-                      \Drupal::logger('typed_labeled_fields')->info('Updated Solr Field list for the "add button"');
-                    }
-                  }
-                }
+            // If the field is not already in the list, add it.
+            if (!empty($fields)) {
+              $fake_fields[$transliterated] = $fake_fields_source_value_each['value'];
+
+              // Avoid duplicate entries.
+              if (!in_array($transliterated, $known_fields)) {
+                // Save the value to the Solr config field list.
+                $this->configuration['fake_fields'] = $faker_field;
+                $config = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
+                $config->set('processor_settings.fakefields_index_fake_fields.fake_fields', $this->configuration['fake_fields']);
+                $config->save();
+                \Drupal::logger('typed_labeled_fields')->info('Updated Solr Field list for the "add button"');
+              }
             }
+          }
         }
+      }
     }
     catch (\Throwable $t) {
       \Drupal::logger('typed_labeled_fields')->warning($t->getMessage());
@@ -137,7 +127,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
     }
   }
 
-   /**
+  /**
    * {@inheritdoc}
    */
   public function defaultConfiguration() {
@@ -173,14 +163,13 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       ->condition('type', $bundle)
       ->sort('created', 'DESC')
       ->execute();
-       #->pager(15)
-
+    // ->pager(15)
     // Create a list of fields for Islandora Object nodes.
     $definitions = \Drupal::service('entity_field.manager')->getFieldStorageDefinitions('node', $bundle);
-    
-    // Don't judge, this nest is inhabited by ..... ERMAHGERD
+
+    // Don't judge, this nest is inhabited by ..... ERMAHGERD.
     foreach ($definitions as $key) {
-      if($key->getType() == $field_type) {
+      if ($key->getType() == $field_type) {
         $fake_fields_sourcex = $key->get('field_name');
         if (!empty($query)) {
           $nodes = $storage->loadMultiple($query);
@@ -203,7 +192,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
                 $faker_field = $this->configuration['fake_fields'] . PHP_EOL . $transliterated;
                 $this->configuration['fake_fields'] = $faker_field;
                 if (!in_array($transliterated, $known_fields) && !empty($transliterated)) {
-                  // List of Solr field names generated by Identifier Types + Label
+                  // List of Solr field names generated by Identifier Types + Label.
                   $config = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
                   $config->set('processor_settings.fakefields_index_fake_fields.fake_fields', $this->configuration['fake_fields']);
                   $config->save();
@@ -218,17 +207,16 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
     return;
   }
 
-
   /**
    * Compile a list of all identifiers types from the Type + Label
    * and update the $this->configuration['fake_fields_source'] list
    */
   public function compileFakeFieldsSources() {
-    // Check if the fake_fields_source list needs to be updated. 
+    // Check if the fake_fields_source list needs to be updated.
     $islandora_object_fields = array_filter(
       \Drupal::service('entity_field.manager')->getFieldDefinitions('node', 'islandora_object'),
       function ($fieldDefinition) {
-        return $fieldDefinition instanceof \Drupal\field\FieldConfigInterface;
+        return $fieldDefinition instanceof FieldConfigInterface;
       }
     );
     $result = [];
@@ -283,7 +271,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
     $form['fake_fields_fetch'] = [
       '#type' => 'submit',
       '#value' => t('Compile Solr field names'),
-      '#submit' => array([$this, 'compileFakeFields']),
+      '#submit' => [[$this, 'compileFakeFields']],
       '#limit_validation_errors' => [],
     ];
 
