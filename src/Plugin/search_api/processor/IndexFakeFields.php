@@ -134,6 +134,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
   public function defaultConfiguration() {
     $configuration = parent::defaultConfiguration();
     $configuration += [
+      'fake_fields_prefix' => 'field_ff_identifier_',
       'fake_fields_source' => '',
       'fake_fields' => '',
     ];
@@ -179,6 +180,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
               foreach ($fake_fields_source_value as $fake_fields_source_value_each) {
                 // Get the Taxonomy term machine name.
                 $term_name = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($fake_fields_source_value_each['type_target_id'])->getName();
+                $prefix_field = $this->configuration['fake_fields_prefix'];
                 // Get the optional user submitted "Label" for the
                 // Islandora Object's identifier type.
                 $temp_label = $term_name . '_' . $fake_fields_source_value_each['label'];
@@ -186,7 +188,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
                 // Process as Solr field machine Name.
                 $new_fake_fields_label = $fake_fields_source_value_each['label'] ? $temp_label : $term_name;
                 // Sanitized solr field name.
-                $transliterated = \Drupal::transliteration()->transliterate(t('@newFakeFieldsLabel', ['@newFakeFieldsLabel' => $new_fake_fields_label]), LanguageInterface::LANGCODE_DEFAULT, '_');
+                $transliterated = \Drupal::transliteration()->transliterate(t('@prefix@newFakeFieldsLabel', ['@prefix' => $prefix_field, '@newFakeFieldsLabel' => $new_fake_fields_label]), LanguageInterface::LANGCODE_DEFAULT, '_');
                 $transliterated = mb_strtolower($transliterated);
                 $transliterated = preg_replace('@[^a-z0-9_.]+@', '_', $transliterated);
                 // Break existing fields into an array and add new value
@@ -255,6 +257,13 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $form['#description'] = t('If this area is empty after compiling check that the Content Type has at least one field of type typed_labeled_text_short.');
+
+    $form['fake_fields_prefix'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('prefix used for fake fields'),
+      '#description' => $this->t('....'),
+      '#default_value' => $this->configuration['fake_fields_prefix'],
+    ];
 
     $form['fake_fields_source'] = [
       '#type' => 'textarea',
