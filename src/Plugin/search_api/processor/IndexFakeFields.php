@@ -298,7 +298,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
     $form['fake_fields_fetch'] = [
       '#type' => 'submit',
       '#value' => t('Compile Solr field names'),
-      '#submit' => [[$this, 'compileFakeFields']],
+      '#submit' => [[$this, 'validateForm'], [$this, 'compileFakeFields']],
     ];
 
     $form['resetForm'] = [
@@ -307,7 +307,9 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       '#submit' => [[$this, 'reset']],
       ];
 
-    return $form;
+      $form['#validate'][] = 'validateForm';
+
+      return $form;
   }
 
   function reset($form, &$form_state) {
@@ -321,6 +323,26 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
     } catch (\Throwable $th) {
       // throw $th;
     }
+  }
+
+  function validateForm($form, &$form_state) {
+    $config_source = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
+    
+    $fake_fields_source = $form_state->getValue('fake_fields_source');
+    $fake_fields_source = preg_split("/\r\n|\n|\r/", $fake_fields_source);
+    $fake_fields_source = array_filter($fake_fields_source);
+    $form_state->setValue('fake_fields_source', implode("\r", implode("\n", $fake_fields_source)));
+    $this->configuration['fake_fields_source'] = $form_state->getValue('fake_fields_source');
+    $config_source->set('processor_settings.fakefields_index_fake_fields.fake_fields_source', $this->configuration['fake_fields_source']);
+
+    $fake_fields = $form_state->getValue('fake_fields');
+    $fake_fields = preg_split("/\r\n|\n|\r/", $fake_fields);
+    $fake_fields = array_filter($fake_fields);
+    $form_state->setValue('fake_fields', implode("\n", $fake_fields));
+    $this->configuration['fake_fields'] = $form_state->getValue('fake_fields');;
+    $config_source->set('processor_settings.fakefields_index_fake_fields.fake_fields', $this->configuration['fake_fields']);
+
+    $config_source->save();
   }
 
   /**
