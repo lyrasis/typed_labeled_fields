@@ -17,7 +17,24 @@ use Drupal\typed_labeled_fields\Field;
 //use Drupal\Core\Entity\EntityInterface;
 //use Drupal\search_api\Plugin\search_api\datasource\ContentEntity;
 //use Drupal\search_api\IndexInterface;
-
+use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Cache\CacheableMetadata;
+use Drupal\Core\Config\Config;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\Query\SelectExtender;
+use Drupal\Core\Database\StatementInterface;
+use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Access\AccessibleInterface;
+use Drupal\Core\Database\Query\Condition;
+use Drupal\Core\Render\RendererInterface;
+use Drupal\content_entity_example\ContactInterface;
+use Drupal\search\Plugin\ConfigurableSearchPluginBase;
+use Drupal\search\Plugin\SearchIndexingInterface;
+use Drupal\search\SearchQuery;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Adds "fake fields" to the index.
  *
@@ -111,7 +128,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
 
             // If the field is not already in the list, add it.
             $fake_fields[$transliterated] = $fake_fields_source_value_each['value'];
-
+            if (count($known_fields[0]) > 1 || !empty($known_fields[0][0])) {
               // Avoid duplicate entries.
               if (!in_array($transliterated, $known_fields)) {
                 // Save the value to the Solr config field list.
@@ -132,6 +149,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
                 }
                 \Drupal::logger('typed_labeled_fields')->info('Updated Solr Field list for the "add button"');
               }
+            }
           }
         }
       }
@@ -183,6 +201,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
     // Create a list of fields for Islandora Object nodes.
     $definitions = \Drupal::service('entity_field.manager')->getFieldStorageDefinitions('node', $bundle);
     // Don't judge, this nest is inhabited by ..... ERMAHGERD.
+    $first_ran = FALSE;
     foreach ($definitions as $key) {
       if ($key->getType() == $field_type) {
         $fake_fields_sourcex = $key->get('field_name');
@@ -208,6 +227,14 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
                 // Break existing fields into an array and add new value
                 // to array.
                 $known_fields = preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields']);
+
+                // Avoid adding a new line if there is only one field.
+                $fake_fields_source_text = t('@$transliterate', ['@$transliterate' => $transliterated]);
+                if ($first_ran) {
+                  $fake_fields_source_text = PHP_EOL . $fake_fields_source_text;
+                  $first_ran = FALSE;
+                }
+      
                 $faker_field = $this->configuration['fake_fields'] . PHP_EOL . $transliterated;
                 $this->configuration['fake_fields'] = $faker_field;
                 if (!in_array($transliterated, $known_fields) && !empty($transliterated)) {
@@ -239,6 +266,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       }
     );
     $result = [];
+    $first_ran = FALSE;
     foreach ($islandora_object_fields as $key => $definition) {
       $result[$key] = [
         'type' => $definition->getType(),
@@ -250,11 +278,18 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
         $transliterated = preg_replace('@[^a-z0-9_.]+@', '_', $transliterated);
         // Break existing fields into an array and add new value to array.
         $known_source_fields = preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields_source']);
-
+        
         // If not in list and is not an empty string add it.
         if (!in_array($transliterated, $known_source_fields) && !empty($transliterated)) {
+          // Avoid adding a new line if there is only one field.
+          $fake_fields_source_text = t('@$transliterate', ['@$transliterate' => $transliterated]);
+          if ($first_ran) {
+            $fake_fields_source_text = PHP_EOL . $fake_fields_source_text;
+            $first_ran = TRUE;
+          }
+
           if (!in_array($transliterated, $known_source_fields)) {
-            $this->configuration['fake_fields_source'] = t('@$transliterate', ['@$transliterate' => $transliterated]) . PHP_EOL;
+            $this->configuration['fake_fields_source'] = $fake_fields_source_text;
             $config_source = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
             $config_source->set('processor_settings.fakefields_index_fake_fields.fake_fields_source', $this->configuration['fake_fields_source']);
             $config_source->save();
@@ -270,27 +305,28 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
-    $form['#description'] = t('If this area is empty after compiling check that the Content Type has at least one field of type typed_labeled_text_short.');
+    $form['#cache']['max-age'] = 0;
+    $form['#description'] = t('If this area is empty fails to compile fields, check that the "Content Type" has at least one field of the type "typed_labeled_text_short".');
 
     $form['fake_fields_prefix'] = [
       '#type' => 'textfield',
-      '#title' => $this->t('prefix used for fake fields'),
-      '#description' => $this->t('....'),
+      '#title' => $this->t('Prefix used for fake fields. SAVE is required before compiling.'),
+      '#description' => $this->t('Feel free to use the default value, but if you change it you will need to save the configuration before compiling. This field can be left blank.'),
       '#default_value' => $this->configuration['fake_fields_prefix'],
     ];
 
     $form['fake_fields_source'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Machine names of the Drupal fields of the type "typed_labeled_text_short".'),
-      '#description' => $this->t('These fields should be of type "Typed Labeled Text (plain)" or "Typed Labeled Text (plain, long)".'),
+      '#title' => $this->t('Machine names of the Drupal fields of the type "typed_labeled_text_short". These fields should be of type "Typed Labeled Text (plain)" or "Typed Labeled Text (plain, long)". '),
+      '#description' => $this->t('These should automatically pull in once when compiling Solr field names. Click button to compile.'),
       '#default_value' => $this->configuration['fake_fields_source'],
     ];
 
     // Validate form to remove blank lines.
     $form['fake_fields'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('List of Solr field names generated by Identifier Types + Label'),
-      '#description' => $this->t('isbn_furiously_happy'),
+      '#title' => $this->t('List of Solr field names generated by Identifier Types + Label. Prefix_Label . For example; isbn_furiously_happy . '),
+      '#description' => $this->t('These should automatically pull in once when compiling Solr field names. Click button to compile.'),
       '#default_value' => $this->configuration['fake_fields'],
     ];
 
