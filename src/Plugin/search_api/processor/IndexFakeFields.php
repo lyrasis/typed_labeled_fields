@@ -2,6 +2,7 @@
 
 namespace Drupal\typed_labeled_fields\Plugin\search_api\processor;
 
+use Drupal;
 use Drupal\field\FieldConfigInterface;
 use Drupal\search_api\Datasource\DatasourceInterface;
 use Drupal\search_api\Item\ItemInterface;
@@ -11,33 +12,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\search_api\Processor\ProcessorPluginBase;
 use Drupal\Core\Language\LanguageInterface;
-use Drupal\search_api\Entity\Index;
-use Drupal\typed_labeled_fields\Field;
-use Drupal\search_api\Entity\Server;
-use Drupal\Core\Entity\EntityInterface;
-use Drupal\search_api\Plugin\search_api\datasource\ContentEntity;
-use Drupal\search_api\IndexInterface;
-use Drupal\Core\Access\AccessResult;
-use Drupal\Core\Cache\CacheableMetadata;
-use Drupal\Core\Config\Config;
-use Drupal\Core\Database\Connection;
-use Drupal\Core\Database\Query\SelectExtender;
-use Drupal\Core\Database\StatementInterface;
-use Drupal\Core\Entity\EntityManagerInterface;
-use Drupal\Core\Extension\ModuleHandlerInterface;
-use Drupal\Core\Language\LanguageManagerInterface;
-use Drupal\Core\Session\AccountInterface;
-use Drupal\Core\Access\AccessibleInterface;
-use Drupal\Core\Database\Query\Condition;
-use Drupal\Core\Render\RendererInterface;
-use Drupal\content_entity_example\ContactInterface;
-use Drupal\search\Plugin\ConfigurableSearchPluginBase;
-use Drupal\search\Plugin\SearchIndexingInterface;
-use Drupal\search\SearchQuery;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\Core\Entity\ContentEntityInterface;
-use Drupal\search_api\Processor\EntityProcessorProperty;
-use Drupal\search_api\Utility\Utility;
+
 /**
  * Adds "fake fields" to the index.
  *
@@ -61,7 +36,8 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
   /**
    * {@inheritdoc}
    */
-  public function getPropertyDefinitions(DatasourceInterface $datasource = NULL) {
+  public function getPropertyDefinitions(DatasourceInterface $datasource = NULL): array
+  {
     $properties = [];
 
     if ($this->configuration['fake_fields'] === NULL) {
@@ -75,20 +51,23 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       foreach (array_filter(preg_split("/\\r\\n|\\r|\\n/", $this->configuration['fake_fields'])) as $value) {
           $this->fake_fields_list[]=$value;
         }
+        $config = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
+        $existing_fields = $config->get('field_settings');
 
         if (count($this->fake_fields_list) > 1 || !empty($this->fake_fields_list[0])) {
         foreach ($this->fake_fields_list as $fake_field) {
-          $transliterated = \Drupal::transliteration()->transliterate(t('@fakeField', ['@fakeField' => $fake_field]), LanguageInterface::LANGCODE_DEFAULT, '_');
+          $transliterated = Drupal::transliteration()->transliterate(t('@fakeField', ['@fakeField' => $fake_field]), LanguageInterface::LANGCODE_DEFAULT, '_');
           $transliterated = mb_strtolower($transliterated);
           $transliterated = preg_replace('@[^a-z0-9_.]+@', '_', $transliterated);
           $fake_field_name = trim($transliterated);
-          // 'label' => $fake_field_name,
+
           if (!$fake_field_name == '') {
             $definition = [
               'label' => t('Fake Field: @fakeField', ['@fakeField' => $fake_field]),
               'description' => $this->t('Fake field managed by the Fake Fields module'),
               'type' => 'string',
               'processor_id' => $this->getPluginId(),
+              'hidden' => array_key_exists($fake_field_name, $existing_fields),
             ];
             $properties[$fake_field_name] = new ProcessorProperty($definition);
           }
@@ -103,45 +82,12 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
    */
   public function addFieldValues(ItemInterface $item) {
     try {
-      // // $fields = $this->getFieldsHelper()->filterForPropertyPath($item->getFields(), NULL, $this->getPluginId());
-      // // foreach ($fields as $field) {
-      // //   // $field->addValue($custom_field);
-      // //   $field->addValue($entity->get($node->get($key)->getPropertyPath())->getValue());
-      // //   ksm($field);
-      // // }
   
       $node = $item->getOriginalObject()->getValue();
       if (!($node instanceof NodeInterface)) {
         return;
       }
       $this->compileFakeFields();
-
-      // $known_fields = array_unique(preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields']));
-      
-      // foreach ($known_fields as $key) {
-      //   // ksm($key);
-      //   // ksm($node->get($key));
-      //   // $field_value = $this->getFieldValue($node, $key);
-      //   // if (!empty($field_value)) {
-      //   //   $item->setField($key, $field_value);
-      //   // }
-      //   $fields = $node->getFields(FALSE);
-        
-      //   $fields = $node->getFieldsHelper()->filterForPropertyPath($fields, NULL, $node->get($key));
-      //   // ksm($node->get($key));
-      //   // $url = $item->getDatasource()->getItemUrl($item->getOriginalObject());
-      //   foreach ($fields as $field) {
-      //     // $field->addValue($entity_label);
-      //     $definition = $field->getDataDefinition();
-      //     ksm($definition);
-      //   }
-      //   // List of Drupal fields with Typed Labeled Text (plain) field type.
-      //   foreach ($fields as $field) {
-      //     $field->addValue($url->toString());
-      //     ksm($url);
-      //   }
-          
-      // }
       $fake_fields_source = $this->configuration['fake_fields_source'];
 
       // Review nodes with a declared Typed Labeled Text (plain) field type.
@@ -153,20 +99,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
           foreach ($fake_fields_source_value as $fake_fields_source_value_each) {
 
             // Get the Taxonomy term machine name.
-            $term_name = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($fake_fields_source_value_each['type_target_id'])->getName();
-            $prefix_field = $this->configuration['fake_fields_prefix'];
-            // Get the optional user submitted "Label" for the
-            // Islandora Object's identifier type.
-            $temp_label = $term_name . '_' . $fake_fields_source_value_each['label'];
-            // Concatenate this into a single String to Process
-            // as Solr field machine Name.
-            $new_fake_fields_label = $fake_fields_source_value_each['label'] ? $temp_label : $term_name;
-
-            // Sanitized solr field name.
-            $new_fake_fields_label = \Drupal::transliteration()->transliterate(t('@prefix_@newFakeFieldsLabel', ['@prefix' => rtrim($prefix_field, '_'), '@newFakeFieldsLabel' => $new_fake_fields_label]), LanguageInterface::LANGCODE_DEFAULT, '_');
-            $new_fake_fields_label = mb_strtolower($new_fake_fields_label);
-            $new_fake_fields_label = preg_replace('@[^a-z0-9_]+@', '_', $new_fake_fields_label);
-            $new_fake_fields_label = str_replace(".", "_", $new_fake_fields_label);
+            $new_fake_fields_label = $this->createDynamicLabel($fake_fields_source_value_each);
             // Break existing fields into an array and add new value to array.
             $known_fields = [];
             foreach (array_filter(preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields'])) as $fvalue) {
@@ -178,27 +111,26 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
             $this->fake_fields[$new_fake_fields_label] = $fake_fields_source_value_each['value'];
 
             // If the field is not already in the list, add it.
-            if (count($known_fields) > 0 || !empty($known_fields[0])) {
-              $config = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
+            if (count($known_fields) > 0 ) {
+              $config = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
               $existing_fields = $config->get('field_settings');
               // OUTPUTS: [label, type_target_id, value]
-              // ksm($fake_fields_source_value_each);
+              // $fake_fields_source_value_each
+
               // OUTPUTS: STRING field_discogs_happy_dog
-              // ksm($new_fake_fields_label);
+              // $new_fake_fields_label
+
               // OUTPUTS: STRING 978-1250077028
-              // ksm($this->fake_fields[$new_fake_fields_label]);
+              // $this->fake_fields[$new_fake_fields_label]
               
               $fields = $item->getFields(FALSE);
               $fields = $this->getFieldsHelper()->filterForPropertyPath($item->getFields(), NULL, $new_fake_fields_label);
 
               if (!empty($fields) && !in_array($new_fake_fields_label, $existing_fields)) {
                 foreach ($fields as $field) {
-                  $configuration = $field->getConfiguration();
-                  $field->addValue($this->fake_fields[$new_fake_fields_label]);
+                    $field->addValue($this->fake_fields[$new_fake_fields_label]);
                   // \Drupal::logger('typed_labeled_fields')->info('New field added: @newFakeFieldsLabel', ['@newFakeFieldsLabel' => $new_fake_fields_label]);
                 }
-              } else {
-                // \Drupal::logger('typed_labeled_fields')->info('The field @field already exists.', ['@field' => $new_fake_fields_label]);
               }
             }
           }
@@ -206,17 +138,18 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       }
     }
     catch (\Throwable $t) {
-      \Drupal::logger('typed_labeled_fields')->warning($t->getMessage());
+      Drupal::logger('typed_labeled_fields')->warning($t->getMessage());
     }
     catch (\Exception | \Error $e) {
-      \Drupal::logger('typed_labeled_fields')->error($e->getMessage());
+      Drupal::logger('typed_labeled_fields')->error($e->getMessage());
     }
   }
 
   /**
    * {@inheritdoc}
    */
-  public function defaultConfiguration() {
+  public function defaultConfiguration(): array
+  {
     $configuration = parent::defaultConfiguration();
     $configuration += [
       'fake_fields_prefix' => 'field_',
@@ -229,7 +162,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
   /**
    * {@inheritdoc}
    */
-  public function compileFakeFields($item = NULL) {
+  public function compileFakeFields() {
     /* To Do: Convert this into a service for scalability. */
 
     // Compile list of Drupal fields that are using the
@@ -242,15 +175,16 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
     $fake_fields_source = $this->configuration['fake_fields_source'];
 
     // Setup node query.
-    $storage = \Drupal::entityTypeManager()->getStorage('node');
+    $storage = Drupal::entityTypeManager()->getStorage('node');
     $query = $storage->getQuery()
       ->condition('status', 1)
       ->condition('type', $bundle)
       ->sort('created', 'ASC')
       ->execute();
-    // ->pager(15)
+
     // Create a list of fields for Islandora Object nodes.
-    $definitions = \Drupal::service('entity_field.manager')->getFieldStorageDefinitions('node', $bundle);
+    $definitions = Drupal::service('entity_field.manager')->getFieldStorageDefinitions('node', $bundle);
+
     // Don't judge, this nest is inhabited by ..... ERMAHGERD.
     $first_ran = FALSE;
     foreach ($definitions as $key) {
@@ -263,19 +197,10 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
             $fake_fields_source_value = $node->get($fake_fields_sourcex)->getValue();
             if ($fake_fields_source_value) {
               foreach ($fake_fields_source_value as $fake_fields_source_value_each) {
+
                 // Get the Taxonomy term machine name.
-                $term_name = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($fake_fields_source_value_each['type_target_id'])->getName();
-                $prefix_field = $this->configuration['fake_fields_prefix'];
-                // Get the optional user submitted "Label" for the Islandora Object's identifier type.
-                $temp_label = $term_name . '_' . $fake_fields_source_value_each['label'];
-                // Concatenate this into a single String to Process as Solr field machine Name.
-                $new_fake_fields_label = $fake_fields_source_value_each['label'] ? $temp_label : $term_name;
-                // Sanitized solr field name.
-                $new_fake_fields_label = \Drupal::transliteration()->transliterate(t('@prefix_@newFakeFieldsLabel', ['@prefix' => rtrim($prefix_field, '_'), '@newFakeFieldsLabel' => $new_fake_fields_label]), LanguageInterface::LANGCODE_DEFAULT, '_');
-                $new_fake_fields_label = mb_strtolower($new_fake_fields_label);
-                $new_fake_fields_label = preg_replace('@[^a-z0-9_]+@', '_', $new_fake_fields_label);
-                $new_fake_fields_label = str_replace(".", "_", $new_fake_fields_label);
-                $new_fake_fields_label = str_replace("__", "_", $new_fake_fields_label);
+                  $new_fake_fields_label = $this->createDynamicLabel($fake_fields_source_value_each);
+                  $new_fake_fields_label = str_replace("__", "_", $new_fake_fields_label);
 
                 // Break existing fields into an array and add new value to array.
                 $known_fields = preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields']);
@@ -291,10 +216,10 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
                 $this->configuration['fake_fields'] = $faker_field;
                 if (!in_array($new_fake_fields_label, $known_fields) && !empty($new_fake_fields_label)) {
                   // List of Solr field names generated by Identifier Types + Label.
-                  $config = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
+                  $config = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
                   $config->set('processor_settings.fakefields_index_fake_fields.fake_fields', $faker_field);
                   $config->save();
-                  \Drupal::logger('typed_labeled_fields')->info('Updated List of Solr field names generated by Identifier Types + Label.');
+                  Drupal::logger('typed_labeled_fields')->info('Updated List of Solr field names generated by Identifier Types + Label.');
                 }
               }
             }
@@ -310,7 +235,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
   public function compileFakeFieldsSources() {
     // Check if the fake_fields_source list needs to be updated.
     $islandora_object_fields = array_filter(
-      \Drupal::service('entity_field.manager')->getFieldDefinitions('node', 'islandora_object'),
+      Drupal::service('entity_field.manager')->getFieldDefinitions('node', 'islandora_object'),
       function ($fieldDefinition) {
         return $fieldDefinition instanceof FieldConfigInterface;
       }
@@ -323,9 +248,10 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       ];
       // If the field is a reference field get also the target entity type.
       if ($result[$key]['type'] == "typed_labeled_text_short") {
-        $transliterated = \Drupal::transliteration()->transliterate(t('@def', ['@def' => $definition->get('field_name')]), LanguageInterface::LANGCODE_DEFAULT, '_');
+        $transliterated = Drupal::transliteration()->transliterate(t('@def', ['@def' => $definition->get('field_name')]), LanguageInterface::LANGCODE_DEFAULT, '_');
         $transliterated = mb_strtolower($transliterated);
         $transliterated = preg_replace('@[^a-z0-9_.]+@', '_', $transliterated);
+
         // Break existing fields into an array and add new value to array.
         $known_source_fields = preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields_source']);
         
@@ -340,10 +266,10 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
 
           if (!in_array($transliterated, $known_source_fields)) {
             $this->configuration['fake_fields_source'] = $fake_fields_source_text;
-            $config_source = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
+            $config_source = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
             $config_source->set('processor_settings.fakefields_index_fake_fields.fake_fields_source', $this->configuration['fake_fields_source']);
             $config_source->save();
-            \Drupal::logger('typed_labeled_fields')->info('Updated Machine names list of Drupal fields with the type typed_labeled_text_short');
+            Drupal::logger('typed_labeled_fields')->info('Updated Machine names list of Drupal fields with the type typed_labeled_text_short');
           }
         }
       }
@@ -400,7 +326,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
 
   function reset($form, &$form_state) {
     try {
-      $config_source = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
+      $config_source = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
       foreach ($this->defaultConfiguration() as $key => $value) {
         $config_source->set('processor_settings.fakefields_index_fake_fields.' . $key, $value);
         $form[$key] = $value;
@@ -444,6 +370,31 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
     $this->setConfiguration($form_state->getValues());
 
-  } 
+  }
+
+    /**
+     * @param $fake_fields_source_value_each
+     * @return array|string|string[]
+     * @throws Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+     * @throws Drupal\Component\Plugin\Exception\PluginNotFoundException
+     */
+    public function createDynamicLabel($fake_fields_source_value_each)
+    {
+        $term_name = Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($fake_fields_source_value_each['type_target_id'])->getName();
+        $prefix_field = $this->configuration['fake_fields_prefix'];
+        // Get the optional user submitted "Label" for the
+        // Islandora Object's identifier type.
+        $temp_label = $term_name . '_' . $fake_fields_source_value_each['label'];
+        // Concatenate this into a single String to Process
+        // as Solr field machine Name.
+        $new_fake_fields_label = $fake_fields_source_value_each['label'] ? $temp_label : $term_name;
+
+        // Sanitized solr field name.
+        $new_fake_fields_label = Drupal::transliteration()->transliterate(t('@prefix_@newFakeFieldsLabel', ['@prefix' => rtrim($prefix_field, '_'), '@newFakeFieldsLabel' => $new_fake_fields_label]), LanguageInterface::LANGCODE_DEFAULT, '_');
+        $new_fake_fields_label = mb_strtolower($new_fake_fields_label);
+        $new_fake_fields_label = preg_replace('@[^a-z0-9_]+@', '_', $new_fake_fields_label);
+        $new_fake_fields_label = str_replace(".", "_", $new_fake_fields_label);
+        return $new_fake_fields_label;
+    }
 
 }
