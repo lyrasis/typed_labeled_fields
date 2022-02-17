@@ -372,28 +372,28 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
 
   }
 
-    /**
-     * @param $fake_fields_source_value_each
-     * @return array|string|string[]
-     * @throws Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
-     * @throws Drupal\Component\Plugin\Exception\PluginNotFoundException
-     */
-    public function createDynamicLabel($fake_fields_source_value_each)
-    {
-        $term_name = Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($fake_fields_source_value_each['type_target_id'])->getName();
-        $prefix_field = $this->configuration['fake_fields_prefix'];
-        // Get the optional user submitted "Label" for the
-        // Islandora Object's identifier type.
-        $temp_label = $term_name . '_' . $fake_fields_source_value_each['label'];
-        // Concatenate this into a single String to Process
-        // as Solr field machine Name.
-        $new_fake_fields_label = $fake_fields_source_value_each['label'] ? $temp_label : $term_name;
+  /**
+   * @param $fake_fields_source_value_each
+   * @return array|string|string[]
+   * @throws Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws Drupal\Component\Plugin\Exception\PluginNotFoundException
+   */
+  public function createDynamicLabel($fake_fields_source_value_each)
+  {
+    $term_name = Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($fake_fields_source_value_each['type_target_id'])->getName();
+    $prefix_field = $this->configuration['fake_fields_prefix'];
+    // Get the optional user submitted "Label" for the
+    // Islandora Object's identifier type.
+    $temp_label = $term_name . '_' . $fake_fields_source_value_each['label'];
+    // Concatenate this into a single String to Process
+    // as Solr field machine Name.
+    $new_fake_fields_label = $fake_fields_source_value_each['label'] ? $temp_label : $term_name;
 
-        // Sanitized solr field name.
-        $new_fake_fields_label = Drupal::transliteration()->transliterate(t('@prefix_@newFakeFieldsLabel', ['@prefix' => rtrim($prefix_field, '_'), '@newFakeFieldsLabel' => $new_fake_fields_label]), LanguageInterface::LANGCODE_DEFAULT, '_');
-        $new_fake_fields_label = mb_strtolower($new_fake_fields_label);
-        $new_fake_fields_label = preg_replace('@[^a-z0-9_]+@', '_', $new_fake_fields_label);
-        return str_replace(".", "_", $new_fake_fields_label);
-    }
+    // Sanitized solr field name.
+    $new_fake_fields_label = Drupal::transliteration()->transliterate(t('@prefix_@newFakeFieldsLabel', ['@prefix' => rtrim($prefix_field, '_'), '@newFakeFieldsLabel' => $new_fake_fields_label]), LanguageInterface::LANGCODE_DEFAULT, '_');
+    $new_fake_fields_label = mb_strtolower($new_fake_fields_label);
+    $new_fake_fields_label = preg_replace('@[^a-z0-9_]+@', '_', $new_fake_fields_label);
+    return str_replace(".", "_", $new_fake_fields_label);
+  }
 
 }
