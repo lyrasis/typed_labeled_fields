@@ -160,7 +160,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
   }
 
   /**
-   * {@inheritdoc}
+   * {}
    */
   public function compileFakeFields() {
     /* To Do: Convert this into a service for scalability. */
@@ -169,19 +169,20 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
     // Typed Labeled Text (plain) / typed_labeled_text_short.
     $this->compileFakeFieldsSources();
     // Set variables to use.
-    $entity_type_id = 'fake';
-    $bundle = 'islandora_object';
+      $bundle = 'islandora_object';
     $field_type = 'typed_labeled_text_short';
-    $fake_fields_source = $this->configuration['fake_fields_source'];
 
-    // Setup node query.
-    $storage = Drupal::entityTypeManager()->getStorage('node');
-    $query = $storage->getQuery()
-      ->condition('status', 1)
-      ->condition('type', $bundle)
-      ->sort('created', 'ASC')
-      ->execute();
-
+      // Setup node query.
+      try {
+          $storage = Drupal::entityTypeManager()->getStorage('node');
+          $query = $storage->getQuery()
+              ->condition('status', 1)
+              ->condition('type', $bundle)
+              ->sort('created')
+              ->execute();
+      } catch (Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException|Drupal\Component\Plugin\Exception\PluginNotFoundException $e) {
+        Drupal::logger('typed_labeled_fields')->error($e->getMessage());
+      }
     // Create a list of fields for Islandora Object nodes.
     $definitions = Drupal::service('entity_field.manager')->getFieldStorageDefinitions('node', $bundle);
 
@@ -199,8 +200,8 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
               foreach ($fake_fields_source_value as $fake_fields_source_value_each) {
 
                 // Get the Taxonomy term machine name.
-                  $new_fake_fields_label = $this->createDynamicLabel($fake_fields_source_value_each);
-                  $new_fake_fields_label = str_replace("__", "_", $new_fake_fields_label);
+                $new_fake_fields_label = $this->createDynamicLabel($fake_fields_source_value_each);
+                $new_fake_fields_label = str_replace("__", "_", $new_fake_fields_label);
 
                 // Break existing fields into an array and add new value to array.
                 $known_fields = preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields']);
@@ -280,7 +281,8 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
   /**
    * {@inheritdoc}
    */
-  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state): array
+  {
     $form['#cache']['max-age'] = 0;
     $form['#description'] = t('If this area is empty fails to compile fields, check that the "Content Type" has at least one field of the type "typed_labeled_text_short".');
 
@@ -324,7 +326,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       return $form;
   }
 
-  function reset($form, &$form_state) {
+  function reset($form) {
     try {
       $config_source = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
       foreach ($this->defaultConfiguration() as $key => $value) {
@@ -333,28 +335,27 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       }
       $config_source->save();
     } catch (\Throwable $th) {
-      // throw $th;
+      Drupal::logger('typed_labeled_fields')->error('Error resetting fake fields processor settings.' . $th->getMessage());
     }
   }
 
-  function validateForm($form, &$form_state) {
-    // $config_source = \Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
-    
-    // $fake_fields_source = $form_state->getValue('fake_fields_source');
-    // $fake_fields_source = preg_split("/\r\n|\n|\r/", $fake_fields_source);
-    // $fake_fields_source = array_filter($fake_fields_source);
-    // $form_state->setValue('fake_fields_source', implode("\n", $fake_fields_source));
-    // $this->configuration['fake_fields_source'] = $form_state->getValue('fake_fields_source');
-    // $config_source->set('processor_settings.fakefields_index_fake_fields.fake_fields_source', $this->configuration['fake_fields_source']);
+  function validateForm($form_state) {
+    $config_source = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
+    $fake_fields_source = $form_state->getValue('fake_fields_source');
+    $fake_fields_source = preg_split("/\r\n|\n|\r/", $fake_fields_source);
+    $fake_fields_source = array_filter($fake_fields_source);
+    $form_state->setValue('fake_fields_source', implode("\n", $fake_fields_source));
+    $this->configuration['fake_fields_source'] = $form_state->getValue('fake_fields_source');
+    $config_source->set('processor_settings.fakefields_index_fake_fields.fake_fields_source', $this->configuration['fake_fields_source']);
 
-    // $fake_fields = $form_state->getValue('fake_fields');
-    // $fake_fields = preg_split("/\r\n|\n|\r/", $fake_fields);
-    // $fake_fields = array_filter($fake_fields);
-    // $form_state->setValue('fake_fields', implode("\n", $fake_fields));
-    // $this->configuration['fake_fields'] = $form_state->getValue('fake_fields');;
-    // $config_source->set('processor_settings.fakefields_index_fake_fields.fake_fields', $this->configuration['fake_fields']);
+    $fake_fields = $form_state->getValue('fake_fields');
+    $fake_fields = preg_split("/\r\n|\n|\r/", $fake_fields);
+    $fake_fields = array_filter($fake_fields);
+    $form_state->setValue('fake_fields', implode("\n", $fake_fields));
+    $this->configuration['fake_fields'] = $form_state->getValue('fake_fields');
+    $config_source->set('processor_settings.fakefields_index_fake_fields.fake_fields', $this->configuration['fake_fields']);
 
-    // $config_source->save();
+    $config_source->save();
   }
 
   /**
@@ -393,8 +394,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
         $new_fake_fields_label = Drupal::transliteration()->transliterate(t('@prefix_@newFakeFieldsLabel', ['@prefix' => rtrim($prefix_field, '_'), '@newFakeFieldsLabel' => $new_fake_fields_label]), LanguageInterface::LANGCODE_DEFAULT, '_');
         $new_fake_fields_label = mb_strtolower($new_fake_fields_label);
         $new_fake_fields_label = preg_replace('@[^a-z0-9_]+@', '_', $new_fake_fields_label);
-        $new_fake_fields_label = str_replace(".", "_", $new_fake_fields_label);
-        return $new_fake_fields_label;
+        return str_replace(".", "_", $new_fake_fields_label);
     }
 
 }
