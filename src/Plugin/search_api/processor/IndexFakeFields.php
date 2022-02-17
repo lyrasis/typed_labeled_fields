@@ -338,8 +338,7 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
       Drupal::logger('typed_labeled_fields')->error('Error resetting fake fields processor settings.' . $th->getMessage());
     }
   }
-
-  function validateForm($form_state) {
+  function validateForm($form, FormStateInterface $form_state) {
     $config_source = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
     $fake_fields_source = $form_state->getValue('fake_fields_source');
     $fake_fields_source = preg_split("/\r\n|\n|\r/", $fake_fields_source);
