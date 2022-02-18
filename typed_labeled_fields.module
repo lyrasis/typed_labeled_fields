@@ -5,6 +5,8 @@
  * Contains Field type, widgets and formatters to metadata.
  */
 
+use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\Sql\SqlContentEntityStorage;
 use Drupal\typed_labeled_fields\Field\EntityReferencePropertiesInterface;
@@ -58,7 +60,7 @@ function typed_labeled_fields_help($route_name, RouteMatchInterface $route_match
       <li>Go to Content Types > Repository Item > Manage Fields > <a href=\"/admin/structure/types/manage/islandora_object/fields/add-field\">Add Field</a></li>
       <li>_ Typed Label Text (plain)</li>
       <li>Label</li>
-      <li>_ Give it a name and it will output a machine name for you.</li>
+      <li>_ Give it a name, and it will output a machine name for you.</li>
       <li>_ Example: \"<b>Fakers Identifier Types</b>\" will output \"<b><i>field_fakers_identifier_types</b></i>\"</li>
       <li>Save</li>
       <li>Allowed number of values = <b>Unlimited</b></li>
@@ -70,7 +72,7 @@ function typed_labeled_fields_help($route_name, RouteMatchInterface $route_match
       <h3>Add content to newly created field</h3>
       Enter data into the newly created field. The script will automatically process the data and output the Solr Document Field.<br>
       <ul>
-        <li>Go to an node object, <a href=\"" . $recent_node_url . "\">here</a>'s the most recently edited node object.</li>
+        <li>Go to a node object, <a href=\"" . $recent_node_url . "\">here</a>'s the most recently edited node object.</li>
         <li>Click <a href=\"" . $recent_node_url . "/edit\">Edit</a></li>
         <li>Scroll to the newly create \"<b>Fakers Identifier Types</b>\" section.</li>
         <li>_ Select a <b>Type</b> from the dropdown.</li>
@@ -83,7 +85,7 @@ function typed_labeled_fields_help($route_name, RouteMatchInterface $route_match
       <ul>
       <li>Configuration > Search and metadata > Search API > Default Solr content index > <a href=\"/admin/config/search/search-api/index/default_solr_index/processors\">Processors</a></li>
       <li>_ Check \"<b>Index fake fields</b>\" on the vertical tabs</li>
-      <li>_ Scroll to the bottom and and click \"Index Fake Fields\" tab in the \"Processor settings\" section</li>
+      <li>_ Scroll to the bottom and click \"Index Fake Fields\" tab in the \"Processor settings\" section</li>
       <li>_ Add \"Fake fields prefix\" or leave blank. The other 2 fields are currently being used for debugging purposes and are reset when the compile button is clicked.</li>
       <li>_ Click <b>Save</b> if you changed a \"prefix\".</li>
       <li>_ Now click \"<b>Discovery & Compile Solr field names</b>\"</li>
@@ -109,12 +111,14 @@ function typed_labeled_fields_help($route_name, RouteMatchInterface $route_match
 
     default:
   }
+  return '';
 }
 
 /**
  * Implements hook_theme().
  */
-function typed_labeled_fields_theme() {
+function typed_labeled_fields_theme(): array
+{
   return [
     'field__grouped_by_display_label' => [
       'template' => 'field--grouped-by-display-label',
@@ -150,7 +154,7 @@ function typed_labeled_fields_module_implements_alter(&$implementations, $hook) 
     case 'node_insert':
     case 'node_update':
       // Our implementation should run last, after the taxonomy module as it
-      // will perform the a deletion of elements from the index.
+      // will perform a deletion of elements from the index.
       $group = $implementations['typed_labeled_fields'];
       unset($implementations['typed_labeled_fields']);
       $implementations['typed_labeled_fields'] = $group;
@@ -171,7 +175,7 @@ function typed_labeled_fields_node_insert(EntityInterface $node) {
 function typed_labeled_fields_node_update(EntityInterface $node) {
   // If we're not dealing with the default revision of the node, do not make any
   // change to the taxonomy index.
-  /** @var \Drupal\node\Entity\Node $node */
+  /** @var Node $node */
   if (!$node->isDefaultRevision()) {
     return;
   }
@@ -183,15 +187,17 @@ function typed_labeled_fields_node_update(EntityInterface $node) {
  *
  * This function is based off of 'taxonomy_build_node_index'
  * except it additionally supports the field types of this module
- * which use EntityReferences as one ore more properties.
+ * which use EntityReferences as one or more properties.
  *
- * @param \Drupal\node\Entity\Node $node
+ * @param Node $node
  *   The node entity.
+ * @throws InvalidPluginDefinitionException
+ * @throws PluginNotFoundException
  */
 function typed_labeled_fields_taxonomy_build_node_index(Node $node) {
   // We maintain a de-normalized table of term/node relationships, containing
   // only data for current, published nodes.
-  if (!\Drupal::config('taxonomy.settings')->get('maintain_index_table') || !(\Drupal::entityTypeManager()->getStorage('node') instanceof SqlContentEntityStorage)) {
+  if (!Drupal::config('taxonomy.settings')->get('maintain_index_table') || !(Drupal::entityTypeManager()->getStorage('node') instanceof SqlContentEntityStorage)) {
     return;
   }
 
@@ -223,7 +229,7 @@ function typed_labeled_fields_taxonomy_build_node_index(Node $node) {
     }
     // Insert index entries for all the node's terms.
     if (!empty($tid_all)) {
-      $connection = \Drupal::database();
+      $connection = Drupal::database();
       foreach ($tid_all as $tid) {
         $connection->merge('taxonomy_index')
           ->key([

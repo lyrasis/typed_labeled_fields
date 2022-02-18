@@ -18,12 +18,7 @@ use Drupal\Core\Plugin\PluginFormInterface;
 use Drupal\search_api\Processor\ProcessorPluginBase;
 use Drupal\Core\Language\LanguageInterface;
 
-use Drupal\comment\CommentInterface;
-use Drupal\Component\Utility\Html;
-use Drupal\Core\TypedData\ComplexDataInterface;
-use Drupal\search_api\Plugin\PluginFormTrait;
-
-/**
+ /**
  * Adds "fake fields" to the index.
  *
  * @SearchApiProcessor(
@@ -207,10 +202,11 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
                 $known_fields = preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields']);
 
                 // Avoid adding a new line if there is only one field.
-                $fake_fields_source_text = t('@$transliterate', ['@$transliterate' => $new_fake_fields_label]);
                 if ($first_ran) {
                   $fake_fields_source_text = PHP_EOL . $fake_fields_source_text;
                   $first_ran = FALSE;
+                } else {
+                  $fake_fields_source_text = t('@$transliterate', ['@$transliterate' => $new_fake_fields_label]);
                 }
 
                 $faker_field = $this->configuration['fake_fields'] . PHP_EOL . rtrim($new_fake_fields_label, '_');
@@ -275,7 +271,6 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
         }
       }
     }
-    // return;.
   }
 
   /**
