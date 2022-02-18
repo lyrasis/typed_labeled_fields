@@ -76,51 +76,5 @@ docker-compose exec -T drupal with-contenv bash -lc "composer require drupal/con
 docker-compose exec -T drupal with-contenv bash -lc "drush en devel -y"
 ```
 
-## To test (after installing module)
-First create a field within the __Islandora Object__ content type and point it to the "identifier" taxonomy. The machine name isn't important, the script will automatically process it by "field type". Later in the config you can set the "prefix" if you want like "field_identifier".
-
-### Go to Content Types > Repository Item > Manage Fields > [Add Field](https://islandora.traefik.me/admin/structure/types/manage/islandora_object/fields/add-field)
-- Add a new field
-  - Typed Label Text (plain)
-- Label
-  - Give it a name and it will output a machine name for you.
-  - Example: "Fakers Identifier Types" will output "field_fakers_identifier_types"
-- Save
--  Allowed number of values = Unlimited
--  Save Field Settings
--  Type: Reference Settings =  Identifier
--  Save
-
-### Go to a repository object and enter data into the newly created field.
-- Click on any node that is an Islandora Object > [edit](https://islandora.traefik.me/node/15/edit)
-- Scroll to the bottom to the "Fakers Identifier Types" section.
-  - Select a Type from the dropdown.
-  - Give it a Label (optional)
-  - Give it a Value
-- Click Save
-
-### Enable/configure Solr processor then compile fields
-The first part of these instructions are to fix a ISLE-dc issue with the "Render Item" config. This will prevent an error from repetitively coming up. Then enable the processor and set the "prefix" (optional).
-
-- Configuration > Search and metadata > Search API > Default Solr content index > [Fields](https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/fields)
-- Click edit for "Rendered item" in the "General" section
-- Set "View mode for Content » Repository Item" to "Search Index" 
-- Save
-- Click [Processors](https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/processors)
-  - Check "Index fake fields"
-  - Scroll to the bottom and and click "Index Fake Fields" tab in the "Processor settings" section
-  - Add the machine name of the input field created earlier, example of "field_fakers_identifier_types"
-  - Leave "Fake fields prefix" blank for now. The other 2 fields are currently being used for debugging purposes and are reset when the compile button is clicked.
-  - Click Save if you added a "prefix"
-  - Now click "Compile Solr Field Names"
-  - The "Machine names" list should be the fields created within the "Islandora Object". Again these names will mean little. This list is to show it found them.
-  - The last section "List of Solr field names generated" is the important list. This shows the new field name Solr will use. It should be the following format
-    - Prefix + '_' + sanitized identifier type machine name + sanitized label(s) entered in the node(s)
-- Click on the "[Fields](https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/fields)" tab
-  - Fields should now be in the list (Working on automating this step)
-- Go back to the "[View](https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index)" tab
-  - Click "Queue all items for reindexing"
-  - Confirm
-  - Index Now
-
-Working on automating the trigger to compile "Compile Solr Field Names" and the process of enabling them on the Solr index field list. All of this and simplifying the code.
+## Instructions on how to use this can be found on the help page
+Admin > Help > Typed Labeled Fields [/admin/help/typed_labeled_fields](/admin/help/typed_labeled_fields)

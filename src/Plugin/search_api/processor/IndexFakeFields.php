@@ -115,7 +115,6 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
             foreach (array_filter(preg_split("/\r\n|\n|\r/", $this->configuration['fake_fields'])) as $fvalue) {
               $known_fields[]=$fvalue;
             }
-            // $faker_field = $this->configuration['fake_fields'] . PHP_EOL . rtrim($new_fake_fields_label, '_');
             
             // This is the field value IE. 978-1250077028
             $this->fake_fields[$new_fake_fields_label] = $fake_fields_source_value_each['value'];
@@ -124,22 +123,13 @@ class IndexFakeFields extends ProcessorPluginBase implements PluginFormInterface
             if (count($known_fields) > 0 ) {
               $config = Drupal::configFactory()->getEditable('search_api.index.default_solr_index');
               $existing_fields = $config->get('field_settings');
-              // OUTPUTS: [label, type_target_id, value]
-              // $fake_fields_source_value_each
-
-              // OUTPUTS: STRING field_discogs_happy_dog
-              // $new_fake_fields_label
-
-              // OUTPUTS: STRING 978-1250077028
-              // $this->fake_fields[$new_fake_fields_label]
-              
               $fields = $item->getFields(FALSE);
               $fields = $this->getFieldsHelper()->filterForPropertyPath($item->getFields(), NULL, $new_fake_fields_label);
 
               if (!empty($fields) && !in_array($new_fake_fields_label, $existing_fields)) {
                 foreach ($fields as $field) {
-                    $field->addValue($this->fake_fields[$new_fake_fields_label]);
-                  // \Drupal::logger('typed_labeled_fields')->info('New field added: @newFakeFieldsLabel', ['@newFakeFieldsLabel' => $new_fake_fields_label]);
+                  $field->addValue($this->fake_fields[$new_fake_fields_label]);
+                  \Drupal::logger('typed_labeled_fields')->info('New field added: @newFakeFieldsLabel', ['@newFakeFieldsLabel' => $new_fake_fields_label]);
                 }
               }
             }
