@@ -19,9 +19,92 @@ function typed_labeled_fields_help($route_name, RouteMatchInterface $route_match
   switch ($route_name) {
     // Main module help for the typed_labeled_fields module.
     case 'help.page.typed_labeled_fields':
+      // Get the most recently edited node and create a link to it.
+      $most_recently_edited_node = node_get_recent(1);
+      $options = ['absolute' => TRUE];
+      $recent_node_url = \Drupal\Core\Url::fromRoute('entity.node.canonical', ['node' => key($most_recently_edited_node) ], $options);
+      $recent_node_url = $recent_node_url->toString();
+
       $output = '';
-      $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('Field types for Islandora for basic metadata') . '</p>';
+      $output .= "
+      <h2>To index \"Fake Fields\"</h2>
+      <p>This <a href=\"/admin/config/search/search-api/index/default_solr_index/processors\">processor</a> takes in multiple values from a single node field and outputs a dynamic Solr document field based on values (type & label) in the <b>Typed Labeled Text (plain)</b> field type.
+
+      <h3>Input node subfields</h3>
+      Identifier: <b>Typed Labeled Text (plain)</b> field type<br/>
+      - <b>Type</b> = <i>International Standard Book Number</i><br/>
+      - <b>Label</b> = <i>Furiously Happy</i><br/>
+      - <b>Value</b> = <i>978-1234567890</i><br/>
+
+      <h3>Output Solr Document Fields</h3>
+      Solr Document Field<br/>
+      - <b>Solr field</b> = \"<i>ss_field_international_standard_book_number_furiously_happy\":\"978-1234567890</i>\"<br/><br/>
+
+      <h2>Outline</h2>
+      This uses the Field Type <b>Typed Labeled Text (plain)</b> and fetches the Type's Name + Given Label(optional) and outputs a solr document field by that name.
+      <ul>
+      <li>1st add a field to the Content Type</li>
+      <li>2nd Add content to newly created field</li>
+      <li>3rd enable \"Fake Fields\" Solr Processor</li>
+      <li>Compile fields</li>
+      <li>Add the fields to the index</li>
+      <li>Index the content</li>
+      </ul>
+      <br/>
+      
+      <h3>Add Field to Content Type</h3>
+      First create a field within the <i>Islandora Object</i> content type and point it to the \"identifier\" taxonomy. The machine name isn't important, the script will automatically process it by \"field type\". Later in the config you can set the \"prefix\" if you want like \"field_identifier\".<br>      
+      <ul>
+      <li>Go to Content Types > Repository Item > Manage Fields > <a href=\"/admin/structure/types/manage/islandora_object/fields/add-field\">Add Field</a></li>
+      <li>_ Typed Label Text (plain)</li>
+      <li>Label</li>
+      <li>_ Give it a name and it will output a machine name for you.</li>
+      <li>_ Example: \"<b>Fakers Identifier Types</b>\" will output \"<b><i>field_fakers_identifier_types</b></i>\"</li>
+      <li>Save</li>
+      <li>Allowed number of values = <b>Unlimited</b></li>
+      <li>Save Field Settings</li>
+      <li>Type: Reference Settings = <b>Identifier</b></li>
+      <li>Save</li>
+      </ul>
+      
+      <h3>Add content to newly created field</h3>
+      Enter data into the newly created field. The script will automatically process the data and output the Solr Document Field.<br>
+      <ul>
+        <li>Go to an node object, <a href=\"" . $recent_node_url . "\">here</a>'s the most recently edited node object.</li>
+        <li>Click <a href=\"" . $recent_node_url . "/edit\">Edit</a></li>
+        <li>Scroll to the newly create \"<b>Fakers Identifier Types</b>\" section.</li>
+        <li>_ Select a <b>Type</b> from the dropdown.</li>
+        <li>_ Give it a <b>Label</b> (<i>optional</i>)</li>
+        <li>_ Give it a <b>Value</b></li>
+        <li>Click Save</li>
+      </ul>
+      
+      <h3>Enable/configure Solr processor then compile fields</h3>
+      <ul>
+      <li>Configuration > Search and metadata > Search API > Default Solr content index > <a href=\"/admin/config/search/search-api/index/default_solr_index/processors\">Processors</a></li>
+      <li>_ Check \"<b>Index fake fields</b>\" on the vertical tabs</li>
+      <li>_ Scroll to the bottom and and click \"Index Fake Fields\" tab in the \"Processor settings\" section</li>
+      <li>_ Add \"Fake fields prefix\" or leave blank. The other 2 fields are currently being used for debugging purposes and are reset when the compile button is clicked.</li>
+      <li>_ Click <b>Save</b> if you changed a \"prefix\".</li>
+      <li>_ Now click \"<b>Discovery & Compile Solr field names</b>\"</li>
+      <li>_ The \"Machine names\" list should be the fields created within the \"Islandora Object\". This list is to show it found them mainly for debugging.</li>
+      <li>_ The last section \"List of Solr field names generated\" is the important list. This shows the new field name Solr will use. It should be the following format</li>
+      <li>_ _ Prefix + '<b>_</b>' + sanitized identifier type machine name + sanitized label(s) entered in the node(s)</li>
+      <li>Click on the \"<a href=\"/admin/config/search/search-api/index/default_solr_index/fields\">Fields</a>\" tab</li>
+      <li>_ Click on \"Add Field\" and \"<b>Fake Field: </b>\" should now be in the list (Working on automating so this step isn't needed)</li>
+      <li>_ Click add field next to each field that starts with \"<b>Fake Field: </b>\"</li>
+      <li>_ Click Save Settings when done</li>
+      <li>Go back to the \"<a href=\"/admin/config/search/search-api/index/default_solr_index\">View</a>\" tab</li>
+      <li>_ Click \"Queue all items for reindexing\"</li>
+      <li>_ Click Confirm</li>
+      <li>_ Click Index Now</li>
+      </ul>
+
+      Navigate to Solr's Dashboard and check the Solr fields are there or run a search to see if they are there.
+      <br/><br/>
+      <h3>To Do</h3>
+      <li>Working on automating the trigger to \"Discovery & Compile Solr field names\" and the process of enabling them on the Solr index field list.</li></p>";
+
       return $output;
 
     default:
