@@ -1,3 +1,5 @@
+Dynamically create Solr fields based on the Identifier Type + Label (optional). This can be expanded and automated but more work is needed.
+
 ## What is Typed labeled fields?
 1. Adds some metadata functionality.
 1. Automatically migrates the taxonomy terms for "identifiers".
