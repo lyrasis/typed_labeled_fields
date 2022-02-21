@@ -23,8 +23,8 @@ use Drupal\Core\Language\LanguageInterface;
  *
  * @SearchApiProcessor(
  *   id = "fakefields_index_fake_fields",
- *   label = @Translation("Index fake fields"),
- *   description = @Translation("Index fields managed by the Fake Fields module."),
+ *   label = @Translation("Enhanced Identifier Aggregated fields(Fake Fields)"),
+ *   description = @Translation("Generate dynamically created fields based on Identifier type + Label with a optional prefix."),
  *   stages = {
  *     "add_properties" = 0,
  *   }

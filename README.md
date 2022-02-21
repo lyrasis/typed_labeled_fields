@@ -1,12 +1,24 @@
 ## What is Typed labeled fields?
-1. Adds the metadata functionality from ECS.
+1. Adds some metadata functionality.
 1. Automatically migrates the taxonomy terms for "identifiers".
 
 ### What are the goals for Typed labeled fields?
-1st goal is to get a working example of the expected behavior with Identifiers.
+Imports identifiers to use to generate dynamic Solr document fields.
 
 ### How does Typed labeled fields work?
 This module sets up a field formatter, field validator, field type, and field widget for a list of fields. Then it will modify the content going into Solr fields.
+
+### TL;DR
+Instructions for installing and running.
+1. Install Module
+1. Add Typed Labeled Text (plain) field type to an __Islandora_repository__ content type
+1. Enable the Solr Processor
+1. Add at least one 1 identifier to an existing Islandora object.
+1. Click on checkbox to enable "Enhanced Identifier Aggregated fields(Fake Fields)" processor and click save
+1. Go to vertical tab Enhanced Identifier Aggregated fields(Fake Fields)
+1. Click "Discovery & Compile Solr field names"
+1. Click on Fields > add the "Fake Field"
+1. Click save & reindex
 
 ## Installation
 Instructions for install within [isle-dc](https://github.com/Islandora-Devops/isle-dc/) or see [## A full dev setup] below
@@ -18,63 +30,26 @@ $ cd web/modules/contrib/
 
 $ git clone https://github.com/lyrasis/typed_labeled_fields
 $ drush pm:enable -y typed_labeled_fields
-
 ```
 
 ### To check if it's installed and running
 
-Go to [https://islandora.traefik.me/admin/help/typed_labeled_fields](https://islandora.traefik.me/admin/help/typed_labeled_fields)
-This page is loaded by the module.
-
-### It should say the following 
-```
-
-
-About
-
-Field types for Islandora for basic metadata
-
-```
+Go to [/admin/help/typed_labeled_fields](/admin/help/typed_labeled_fields)
+This loads the help page and should walk the user on how to set up the field in a way that's useful.
 
 ### To enable (Solr plugin)
-- Go to [https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/processors](https://islandora.traefik.me/admin/config/search/search-api/index/default_solr_index/processors)
+- Go to [/admin/config/search/search-api/index/default_solr_index/processors](/admin/config/search/search-api/index/default_solr_index/processors)
 - Check "Enhanced Identifier Aggregated fields"
 - Click Save
 
-## What is the current status?
-1. Transferred the metadata module from ECS over.
-1. Transferred over some support logic found in support modules found in ECS into the https://github.com/lyrasis/typed_labeled_fields module
-1. Added a migration of the identifiers (like ISBN) for testing and integrated it into the install process.
-1. Ran tests to verify adding a field “typed Label….short” will output the same results as ECS both within Drupal and Solr.
-1. Added a solr processor for the ability to push into Solr without having to create Drupal fields to store modified keys & values to accommodate the requirements point to in https://github.com/lyrasis/islandora-metadata/blob/main/field_types/all_typed_and_labeled_fields.adoc#indexing  --__Work in progress__
-
 ## What is still needed?
-1. Using isle-dc what needs to be done?
-    A. Processing invalid identifiers into valid identifiers
-        - [Solr Prefix]_[Drupal field name][Drupal field name’s type][Drupal field name’s label]
-1. is_ascii and case_sensitive was a customization on ECS that needs to be ported to avoid the constant notices.
-1. Address the "The field Rendered item (rendered_item) on index Default Solr content index is missing view mode configuration for some datasources or bundles. Please review (and re-save) the field settings" error message.
+Automate completely so the users doesn't need to occasionally add new values.
 
-## References
-..
-
-## A full dev setup
-To set up everything for developing and testing. This is optional.
-```shell
-make up
-docker-compose exec -T drupal with-contenv bash -lc "git clone https://github.com/lyrasis/typed_labeled_fields/"
-docker-compose exec -T drupal with-contenv bash -lc "composer require drupal/console:~1.0 --prefer-dist --optimize-autoloader -W -y"
-docker-compose exec -T drupal with-contenv bash -lc "echo 'alias drupal=\"/var/www/drupal/vendor/drupal/console/bin/drupal\"' >> ~/.bashrc"
-docker-compose exec -T drupal with-contenv bash -lc "composer require 'drupal/adminimal_theme:^1.6' --prefer-dist --optimize-autoloader -W"
-docker-compose exec -T drupal with-contenv bash -lc "drush theme:enable adminimal_theme"
-docker-compose exec -T drupal with-contenv bash -lc "drush config-set system.theme admin adminimal_theme -y"
-docker-compose exec -T drupal with-contenv bash -lc "composer require 'drupal/adminimal_admin_toolbar:^1.11'"
-docker-compose exec -T drupal with-contenv bash -lc "drush pm:enable -y adminimal_admin_toolbar"
-docker-compose exec -T drupal with-contenv bash -lc "composer require 'drupal/config_delete:^1.17'"
-docker-compose exec -T drupal with-contenv bash -lc "drush pm:enable -y config_delete"
-docker-compose exec -T drupal with-contenv bash -lc "composer require drupal/console:~1.0 --prefer-dist --optimize-autoloader -W -y"
-docker-compose exec -T drupal with-contenv bash -lc "drush en devel -y"
-```
-
-## Instructions on how to use this can be found on the help page
+## How to use
+For detailed instructions please visit the help page. 
 Admin > Help > Typed Labeled Fields [/admin/help/typed_labeled_fields](/admin/help/typed_labeled_fields)
+
+Also the instructions are found in code within the [.module](https://github.com/lyrasis/typed_labeled_fields/blob/master/typed_labeled_fields.module#L20) file.
+
+## To Do
+This really needs to be automated to be as useful as people are likely to expect it to be. Currently when new identifiers are filled in they are not dynamically added to the index. A CRON job or Action should be made to make this happen.

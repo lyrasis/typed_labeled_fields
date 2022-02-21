@@ -29,6 +29,9 @@ function typed_labeled_fields_help($route_name, RouteMatchInterface $route_match
 
       $output = '';
       $output .= "
+      <h1>Solr Processor Enhanced Identifier Aggregated Fields(Fake Fields)</h1>
+      This processor is used to add aggregate fake fields from existing fields & values into a new fake Solr document field.
+
       <h2>To index \"Fake Fields\"</h2>
       <p>This <a href=\"/admin/config/search/search-api/index/default_solr_index/processors\">processor</a> takes in multiple values from a single node field and outputs a dynamic Solr document field based on values (type & label) in the <b>Typed Labeled Text (plain)</b> field type.
 
