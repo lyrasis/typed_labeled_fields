@@ -1,3 +1,5 @@
+**This was exploratory work toward making "new Islandora" usable for our client metadata. It was abandoned when we decided we could not support a hosting service for the new Islandora.**
+
 Dynamically create Solr fields based on the Identifier Type + Label (optional). This can be expanded and automated but more work is needed.
 
 ## What is Typed labeled fields?
